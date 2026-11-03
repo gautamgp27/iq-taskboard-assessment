@@ -106,6 +106,18 @@ curl -s -X POST $B/api/auth/register -H 'Content-Type: application/json' \
 
 ### Also noted (not in the top 4)
 
+- **UI — no validation feedback on empty task title.** File: `src/app/projects/[id]/page.tsx:98-113`. Category: UI/UX. Severity: Low.
+
+  > When the task title is left empty (or only spaces) and "add" is clicked, the app does nothing — no task is created and no message is shown — but it should tell the user the title is required (inline error or a `required` field), so the click doesn't appear to silently fail.
+
+  Cause: the submit handler calls `if (!newTitle.trim()) return;` (line 101) and bails silently, and the `<input>` (line 107) has no `required` attribute, so there is no browser or in-app prompt.
+
+- **UI — long task title overflows its card and no length/character rules are shown.** Files: `src/components/TaskCard.tsx:17` (no word-break on the title) and `src/app/projects/[id]/page.tsx:107` (input has no `maxLength`). Category: UI/UX. Severity: Low.
+
+  > When a task is created with a long title — especially one unbroken string — the title text overflows the card and spills horizontally across the other status columns, but it should wrap or truncate inside its own card. Also, the input gives no indication of the allowed length (the server caps titles at 200 chars, `src/schemas/task.ts:7`) or allowed characters, so the user only finds out by trial.
+
+  Fixes: add `break-words` (or `truncate`/line-clamp) to the title element; add `maxLength={200}` to the input and show a short hint or character counter.
+
 - **Performance:** `src/app/api/projects/route.ts:16` loads every task row of every project just to compute `taskCount`. `_count` would avoid this.
 - **UI:** When a viewer opens a project, the app still shows "add a task" and "delete task". The error only appears after the click (`src/app/projects/[id]/page.tsx:96`, `src/components/TaskDetail.tsx`).
 - **Data integrity:** New-task position is `max + 1` without a transaction (`tasks/route.ts:67-81`), so concurrent creates can share a position.
