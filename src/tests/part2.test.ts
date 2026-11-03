@@ -67,7 +67,9 @@ describe("task access control", () => {
       },
       body: JSON.stringify({ title: "viewer create attempt" }),
     });
-    expect(res.status).toBe(401);
+    // A viewer is authenticated but lacks permission, so the correct status is
+    // 403 (Forbidden), not 401 (Unauthorized). The test asserted the wrong code.
+    expect(res.status).toBe(403);
   });
 
   // Test C
@@ -81,5 +83,36 @@ describe("task access control", () => {
       body: JSON.stringify({ title: "member create — baseline" }),
     });
     expect(res.status).toBe(201);
+  });
+});
+
+// Added by candidate — scenarios not covered by the provided tests.
+// These reinforce the 401-vs-403 distinction and guard the PATCH authz fix.
+describe("task access control — additional coverage", () => {
+  // Test D: a genuinely unauthenticated request (no token) is the real 401 case,
+  // in contrast to the viewer's 403. Non-mutating: rejected before any write.
+  it("an unauthenticated request cannot update a task (401)", async () => {
+    const res = await fetch(`${BASE_URL}/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "no-token update attempt" }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  // Test E: a user who is not a member of the task's project is authenticated
+  // but forbidden (403). lina@example.com is not a member of Q3 Launch.
+  // This is the broader version of the PATCH access-control bug.
+  it("a non-member cannot update a task (403)", async () => {
+    const lina = await login("lina@example.com");
+    const res = await fetch(`${BASE_URL}/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${lina}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title: "non-member update attempt" }),
+    });
+    expect(res.status).toBe(403);
   });
 });
